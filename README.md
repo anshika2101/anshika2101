@@ -14,6 +14,7 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
+ 
  @patch('alerting_sms.consumer.mark_as_failed')
 @patch('alerting_sms.consumer.mark_as_success')
 @patch('alerting_sms.consumer.SmsSender.create_sms')
