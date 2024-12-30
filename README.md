@@ -14,86 +14,27 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
-import pytest
-from unittest.mock import patch, MagicMock, call
-from your_module import Worker, EventConsumerManager  # Replace with your actual module name
-import json
-
-@pytest.fixture
-def mock_engine():
-    """Mock database engine."""
-    return MagicMock()
-
-@pytest.fixture
-def mock_broker_connection():
-    """Mock broker connection."""
-    with patch("your_module.BrokerConnection") as broker:
-        yield broker
-
-@pytest.fixture
-def mock_logger():
-    """Mock logger."""
-    with patch("your_module.sgl.get_sg_logger") as logger:
-        yield logger
-
-@pytest.fixture
-def worker(mock_engine):
-    """Initialize Worker with mocked dependencies."""
-    queues = MagicMock()
-    return Worker(MagicMock(), queues, "mock_rabbit_url")
-
-def test_worker_initialization(worker):
-    assert worker.connection is not None
-    assert worker.queues is not None
-    assert worker.rabbit_url == "mock_rabbit_url"
-    assert worker.engine is not None
-
-def test_on_message_valid(worker, mock_logger):
-    """Test valid message processing."""
-    body = json.dumps({"sms": {"destination": "1234567890", "body": "Test", "account_id": 1}})
+ @patch('alerting_sms.consumer.mark_as_failed')
+@patch('alerting_sms.consumer.mark_as_success')
+@patch('alerting_sms.consumer.SmsSender.create_sms')
+def test_on_message_failure(mock_create_sms, mock_mark_as_success, mock_mark_as_failed, worker):
+    body = {
+        "sms": {
+            "destination": "1234567890",
+            "body": "Test message",
+            "account_id": "test_account",
+            "notification_id": "test_notification",
+        }
+    }
     message = MagicMock()
-    with patch("your_module.SmsSender.create_sms") as mock_sms, \
-         patch("your_module.ResponseStatus") as mock_status, \
-         patch("your_module.mark_as_success") as mock_success:
-        # Mock SMS success scenario
-        mock_sms.return_value.instance.send.return_value.status = mock_status.SUCCESS
-        worker.on_message(body, message)
-        mock_success.assert_called_once()
+    sms_instance = MagicMock()
+    sms_instance.send.return_value.status = ResponseStatus.FAILURE
+    mock_create_sms.return_value = sms_instance
 
-def test_on_message_invalid(worker, mock_logger):
-    """Test invalid message handling."""
-    body = "Invalid JSON"
-    message = MagicMock()
     worker.on_message(body, message)
-    mock_logger.error.assert_called()
 
-def test_publish_notification(worker, mock_logger):
-    """Test publish_notification."""
-    body = {"action": {"some": "data"}}
-    with patch("your_module.post_in_queue") as mock_post:
-        worker.publish_notification(body, 1)
-        mock_post.assert_called_once()
-
-def test_republish(worker, mock_logger):
-    """Test republish logic."""
-    body = {"test": "data"}
-    message = MagicMock(headers={"x-redelivered-count": 0})
-    with patch("your_module.Publisher") as mock_publisher:
-        worker.republish(body, message)
-        assert message.ack.called
-        mock_publisher.assert_called_once()
-
-def test_republish_max_retries(worker, mock_logger):
-    """Test republish max retry scenario."""
-    body = {"test": "data"}
-    message = MagicMock(headers={"x-redelivered-count": 3})
-    worker.republish(body, message)
-    assert "Max number of retry reached" in str(mock_logger.debug.call_args)
-
-def test_event_consumer_manager_run(mock_broker_connection, mock_logger):
-    """Test EventConsumerManager.run."""
-    app = MagicMock()
-    manager = EventConsumerManager(app)
-    with patch("your_module.Worker") as mock_worker:
-        manager.run()
-        mock_worker.assert_called_once()
+    # Assertions
+    mock_create_sms.assert_called_once()
+    mock_mark_as_success.assert_not_called()
+    mock_mark_as_failed.assert_called_once_with(worker.engine, "test_notification")
+    message.ack.assert_called_once()
