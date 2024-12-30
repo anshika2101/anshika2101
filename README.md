@@ -39,3 +39,6 @@ def test_on_message_failure(mock_create_sms, mock_mark_as_success, mock_mark_as_
     mock_mark_as_success.assert_not_called()
     mock_mark_as_failed.assert_called_once_with(worker.engine, "test_notification")
     message.ack.assert_called_once()
+if sms_instance.send().status == ResponseStatus.FAILURE:
+    print(f"Failure path triggered for notification: {body['sms']['notification_id']}")
+    mark_as_failed(engine, body['sms']['notification_id'])
