@@ -15,30 +15,49 @@ Here are some ideas to get you started:
 - ⚡ Fun fact: ...
 -->
  
- @patch('alerting_sms.consumer.mark_as_failed')
-@patch('alerting_sms.consumer.mark_as_success')
-@patch('alerting_sms.consumer.SmsSender.create_sms')
-def test_on_message_failure(mock_create_sms, mock_mark_as_success, mock_mark_as_failed, worker):
-    body = {
-        "sms": {
-            "destination": "1234567890",
-            "body": "Test message",
-            "account_id": "test_account",
-            "notification_id": "test_notification",
-        }
-    }
-    message = MagicMock()
-    sms_instance = MagicMock()
-    sms_instance.send.return_value.status = ResponseStatus.FAILURE
-    mock_create_sms.return_value = sms_instance
+import unittest
+from unittest.mock import patch, MagicMock
+from your_module import SmtpServer, Response, ResponseStatus  # Replace 'your_module' with the actual module name
 
-    worker.on_message(body, message)
+class TestSmtpServer(unittest.TestCase):
 
-    # Assertions
-    mock_create_sms.assert_called_once()
-    mock_mark_as_success.assert_not_called()
-    mock_mark_as_failed.assert_called_once_with(worker.engine, "test_notification")
-    message.ack.assert_called_once()
-if sms_instance.send().status == ResponseStatus.FAILURE:
-    print(f"Failure path triggered for notification: {body['sms']['notification_id']}")
-    mark_as_failed(engine, body['sms']['notification_id'])
+    @patch("your_module.smtplib.SMTP")
+    @patch("your_module.check_quotas")
+    @patch("your_module.email.generate_body")
+    @patch("your_module.update_quotas")
+    def test_send_email_success(self, mock_update_quotas, mock_generate_body, mock_check_quotas, mock_smtp):
+        # Mock inputs and outputs
+        mock_check_quotas.return_value = None
+        mock_generate_body.return_value = "Email body"
+        smtp_instance = MagicMock()
+        mock_smtp.return_value = smtp_instance
+
+        # Create instance of SmtpServer
+        server_address = "test.smtp.server"
+        smtp_server = SmtpServer(server_address)
+
+        # Mock email object
+        email = MagicMock()
+        email.sender = "test@example.com"
+        email.parse_receivers.return_value = ["receiver@example.com"]
+        email.account_id = "test_account"
+
+        # Call the method
+        response = smtp_server.send(email)
+
+        # Assertions
+        self.assertEqual(response.status, ResponseStatus.SUCCESS)
+        self.assertEqual(response.message, "Email correctly delivered to SMTP server")
+        smtp_instance.connect.assert_called_once_with(server_address, 25)
+        smtp_instance.sendmail.assert_called_once_with(
+            email.sender,
+            ["receiver@example.com"],
+            "Email body".encode("utf-8"),
+        )
+        mock_update_quotas.assert_any_call("sms", "test_account")
+        mock_update_quotas.assert_any_call("sms", "global")
+
+    @patch("your_module.check_quotas")
+    def test_send_email_quota_exceeded(self, mock_check_quotas):
+        # Mock quota exceeded
+        mock_check_quotas.return_value = "Quota e
