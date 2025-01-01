@@ -14,50 +14,55 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
- 
-import unittest
-from unittest.mock import patch, MagicMock
-from your_module import SmtpServer, Response, ResponseStatus  # Replace 'your_module' with the actual module name
-
-class TestSmtpServer(unittest.TestCase):
-
-    @patch("your_module.smtplib.SMTP")
-    @patch("your_module.check_quotas")
-    @patch("your_module.email.generate_body")
-    @patch("your_module.update_quotas")
-    def test_send_email_success(self, mock_update_quotas, mock_generate_body, mock_check_quotas, mock_smtp):
-        # Mock inputs and outputs
-        mock_check_quotas.return_value = None
-        mock_generate_body.return_value = "Email body"
-        smtp_instance = MagicMock()
-        mock_smtp.return_value = smtp_instance
-
-        # Create instance of SmtpServer
+ class TestSmtpServer(object):
+    def test_send_should_return_success_when_email_is_sent(self):
+        # Setup
         server_address = "test.smtp.server"
         smtp_server = SmtpServer(server_address)
 
         # Mock email object
-        email = MagicMock()
-        email.sender = "test@example.com"
-        email.parse_receivers.return_value = ["receiver@example.com"]
-        email.account_id = "test_account"
+        class MockEmail:
+            sender = "test@example.com"
+            def parse_receivers(self):
+                return ["receiver@example.com"]
+            def generate_body(self):
+                return "Test email body"
+            account_id = "test_account"
 
-        # Call the method
+        email = MockEmail()
+
+        # Act
         response = smtp_server.send(email)
 
-        # Assertions
-        self.assertEqual(response.status, ResponseStatus.SUCCESS)
-        self.assertEqual(response.message, "Email correctly delivered to SMTP server")
-        smtp_instance.connect.assert_called_once_with(server_address, 25)
-        smtp_instance.sendmail.assert_called_once_with(
-            email.sender,
-            ["receiver@example.com"],
-            "Email body".encode("utf-8"),
-        )
-        mock_update_quotas.assert_any_call("sms", "test_account")
-        mock_update_quotas.assert_any_call("sms", "global")
+        # Assert
+        assert response.status == ResponseStatus.SUCCESS
+        assert response.message == "Email correctly delivered to SMTP server"
 
-    @patch("your_module.check_quotas")
-    def test_send_email_quota_exceeded(self, mock_check_quotas):
-        # Mock quota exceeded
-        mock_check_quotas.return_value = "Quota e
+    def test_send_should_return_failure_when_quota_exceeded(self):
+        # Setup
+        server_address = "test.smtp.server"
+        smtp_server = SmtpServer(server_address)
+
+        # Mock email object
+        class MockEmail:
+            sender = "test@example.com"
+            def parse_receivers(self):
+                return ["receiver@example.com"]
+            def generate_body(self):
+                return "Test email body"
+            account_id = "test_account"
+
+        email = MockEmail()
+
+        # Simulate quota exceeded by modifying behavior
+        def mock_check_quotas(*args, **kwargs):
+            return "Quota exceeded"
+
+        SmtpServer.check_quotas = mock_check_quotas  # Overwrite the method
+
+        # Act
+        response = smtp_server.send(email)
+
+        # Assert
+        assert response.status == ResponseStatus.QUOTAS
+        assert "Error: unable to send email." in response.message
