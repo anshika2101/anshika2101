@@ -14,55 +14,28 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
- class TestSmtpServer(object):
-    def test_send_should_return_success_when_email_is_sent(self):
-        # Setup
-        server_address = "test.smtp.server"
-        smtp_server = SmtpServer(server_address)
+import pytest
+from alerting_sms.resources.smtp import SmtpServer, ResponseStatus, QuotaExceededException
 
-        # Mock email object
-        class MockEmail:
-            sender = "test@example.com"
-            def parse_receivers(self):
-                return ["receiver@example.com"]
-            def generate_body(self):
-                return "Test email body"
-            account_id = "test_account"
+def test_smtp_server_send_quota_exceeded(mocker):
+    # Arrange
+    mocker.patch("alerting_sms.utils.check_quotas", side_effect=QuotaExceededException("Quota exceeded"))
 
-        email = MockEmail()
+    smtp_server = SmtpServer("test.smtp.server")
+    
+    class MockEmail:
+        sender = "test@example.com"
+        def parse_receivers(self):
+            return ["receiver@example.com"]
+        def generate_body(self):
+            return "Test email body"
+        account_id = "test_account"
 
-        # Act
-        response = smtp_server.send(email)
+    email = MockEmail()
 
-        # Assert
-        assert response.status == ResponseStatus.SUCCESS
-        assert response.message == "Email correctly delivered to SMTP server"
+    # Act
+    response = smtp_server.send(email)
 
-    def test_send_should_return_failure_when_quota_exceeded(self):
-        # Setup
-        server_address = "test.smtp.server"
-        smtp_server = SmtpServer(server_address)
-
-        # Mock email object
-        class MockEmail:
-            sender = "test@example.com"
-            def parse_receivers(self):
-                return ["receiver@example.com"]
-            def generate_body(self):
-                return "Test email body"
-            account_id = "test_account"
-
-        email = MockEmail()
-
-        # Simulate quota exceeded by modifying behavior
-        def mock_check_quotas(*args, **kwargs):
-            return "Quota exceeded"
-
-        SmtpServer.check_quotas = mock_check_quotas  # Overwrite the method
-
-        # Act
-        response = smtp_server.send(email)
-
-        # Assert
-        assert response.status == ResponseStatus.QUOTAS
-        assert "Error: unable to send email." in response.message
+    # Assert
+    assert response.status == ResponseStatus.QUOTAS
+    assert "Error: unable to send email." in response.message
