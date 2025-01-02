@@ -1,9 +1,9 @@
-def test_quotas_exceeded():
-    class MockQuotaServer(SmtpServer):
+def test_smtp_connection_error():
+    class MockFailingServer(SmtpServer):
         def send(self, email):
-            raise QuotaExceededException("Quota exceeded")
+            raise smtplib.SMTPException("Connection error")
 
-    Smtp.set_smtp_server(MockQuotaServer("mock_address"))
+    Smtp.set_smtp_server(MockFailingServer("mock_address"))
     payload = {
         "sender": "test@example.com",
         "destination": "test@example.com",
@@ -12,10 +12,5 @@ def test_quotas_exceeded():
     }
     smtp = Smtp.create_from_json(payload).instance
     response = smtp.send()
-    assert response.status == ResponseStatus.QUOTAS
-    assert "Quota exceeded" in response.human_readable_response
-    except QuotaExceededException as e:
-        response = ResponseStatus.QUOTAS
-        assert str(e) == "Quota exceeded"
-
-    assert response == ResponseStatus.QUOTAS
+    assert response.status == ResponseStatus.SMTP
+    assert "Connection error" in response.human_readable_response
