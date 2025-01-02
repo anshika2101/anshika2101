@@ -1,39 +1,16 @@
-## Hi there 👋
+def test_quotas_exceeded():
+    class MockQuotaServer(SmtpServer):
+        def send(self, email):
+            raise QuotaExceededException("Quota exceeded")
 
-<!--
-**anshika2101/anshika2101** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
-
-Here are some ideas to get you started:
-
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
-
-def test_missing_destination():
-    payload = {"sender": "test@example.com", "subject": "Test", "body": "Test body", "destination": ""}
-    response = Smtp.create_from_json(payload)
-    assert response.status == ResponseStatus.SMTP
-    assert "destination" in response.human_readable_response
-
-def test_invalid_email_address():
+    Smtp.set_smtp_server(MockQuotaServer("mock_address"))
     payload = {
-        "sender": "invalid-email",
-        "destination": "not-an-email",
-        "subject": "Test",
-        "body": "Test body",
+        "sender": "test@example.com",
+        "destination": "test@example.com",
+        "subject": "Test Subject",
+        "body": "Test Body",
     }
-    response = Smtp.create_from_json(payload)
-    assert response.status == ResponseStatus.SMTP
-    assert "destination" in response.human_readable_response
-def test_missing_subject():
-    payload = {"sender": "test@example.com", "destination": "test@example.com", "body": "Test body", "subject": ""}
-    response = Smtp.create_from_json(payload)
-    assert response.status == ResponseStatus.SMTP
-    assert "subject" in response.human_readable_response
-
+    smtp = Smtp.create_from_json(payload).instance
+    response = smtp.send()
+    assert response.status == ResponseStatus.QUOTAS
+    assert "Quota exceeded" in response.human_readable_response
