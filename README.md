@@ -15,9 +15,25 @@ Here are some ideas to get you started:
 - ⚡ Fun fact: ...
 -->
 
-
-def test_missing_sender():
-    payload = {"subject": "Test", "body": "Test body", "destination": "test@example.com"}
+def test_missing_destination():
+    payload = {"sender": "test@example.com", "subject": "Test", "body": "Test body", "destination": ""}
     response = Smtp.create_from_json(payload)
     assert response.status == ResponseStatus.SMTP
-    assert "sender" in response.human_readable_response
+    assert "destination" in response.human_readable_response
+
+def test_invalid_email_address():
+    payload = {
+        "sender": "invalid-email",
+        "destination": "not-an-email",
+        "subject": "Test",
+        "body": "Test body",
+    }
+    response = Smtp.create_from_json(payload)
+    assert response.status == ResponseStatus.SMTP
+    assert "destination" in response.human_readable_response
+def test_missing_subject():
+    payload = {"sender": "test@example.com", "destination": "test@example.com", "body": "Test body", "subject": ""}
+    response = Smtp.create_from_json(payload)
+    assert response.status == ResponseStatus.SMTP
+    assert "subject" in response.human_readable_response
+
