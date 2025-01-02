@@ -14,3 +14,8 @@ def test_quotas_exceeded():
     response = smtp.send()
     assert response.status == ResponseStatus.QUOTAS
     assert "Quota exceeded" in response.human_readable_response
+    except QuotaExceededException as e:
+        response = ResponseStatus.QUOTAS
+        assert str(e) == "Quota exceeded"
+
+    assert response == ResponseStatus.QUOTAS
