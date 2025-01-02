@@ -14,28 +14,10 @@ Here are some ideas to get you started:
 - 😄 Pronouns: ...
 - ⚡ Fun fact: ...
 -->
-import pytest
-from alerting_sms.resources.smtp import SmtpServer, ResponseStatus, QuotaExceededException
 
-def test_smtp_server_send_quota_exceeded(mocker):
-    # Arrange
-    mocker.patch("alerting_sms.utils.check_quotas", side_effect=QuotaExceededException("Quota exceeded"))
 
-    smtp_server = SmtpServer("test.smtp.server")
-    
-    class MockEmail:
-        sender = "test@example.com"
-        def parse_receivers(self):
-            return ["receiver@example.com"]
-        def generate_body(self):
-            return "Test email body"
-        account_id = "test_account"
-
-    email = MockEmail()
-
-    # Act
-    response = smtp_server.send(email)
-
-    # Assert
-    assert response.status == ResponseStatus.QUOTAS
-    assert "Error: unable to send email." in response.message
+def test_missing_sender():
+    payload = {"subject": "Test", "body": "Test body", "destination": "test@example.com"}
+    response = Smtp.create_from_json(payload)
+    assert response.status == ResponseStatus.SMTP
+    assert "sender" in response.human_readable_response
