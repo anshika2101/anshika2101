@@ -103,3 +103,43 @@ class TestSmtpServer(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+import unittest
+from unittest.mock import patch, MagicMock
+from your_module_name import SmtpServer, Response, ResponseStatus, QuotaExceededException
+import inspect
+
+
+class TestQuotaExceededExceptionHandling(unittest.TestCase):
+
+    @patch('your_module_name.smtplib.SMTP')
+    @patch('your_module_name.app.config.get')
+    @patch('your_module_name.check_quotas')
+    def test_quota_exceeded_exception_handling(self, mock_check_quotas, mock_config_get, mock_smtp):
+        # Setup
+        mock_config_get.return_value = 'PRD'
+        mock_smtp_instance = MagicMock()
+        mock_smtp.return_value = mock_smtp_instance
+        mock_check_quotas.side_effect = QuotaExceededException("Quota exceeded for user")
+
+        smtp_server = SmtpServer()
+        email = MagicMock()
+        email.account_id = "12345"
+
+        # Redirect print to capture the output
+        with patch('builtins.print') as mock_print:
+            response = smtp_server.send(email)
+
+        # Verify
+        # Ensure the exception was caught and handled
+        self.assertEqual(response.status, ResponseStatus.QUOTAS)
+        self.assertIn("Quotas exceeded for user", response.human_readable_response)
+
+        # Check if the file name and line number were printed correctly
+        f = inspect.currentframe()
+        expected_message = f"{f.f_code.co_filename}#{f.f_lineno - 4}:"  # Adjusted for relative line offset
+        mock_print.assert_any_call(expected_message, "Quota exceeded for user")
+
+
+if __name__ == '__main__':
+    unittest.main()
+
